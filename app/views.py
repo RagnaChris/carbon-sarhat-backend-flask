@@ -174,16 +174,17 @@ def login():
     try:
         data = json.loads(request.data)
         address = data["address"]
-        pub_key = data["public_key"]
+        email = data["email"]
 
         user = User.query\
-                .filter((User.address == data["address"]) | (User.email == data["email"]))\
+                .filter((User.address == address) | (User.email == email))\
                 .first()
         
         if not user:
             raise Exception("Invalid email, address, and/or password.")
 
         if user.role == Role.RETAIL:
+            public_key = data["public_key"]
             token = data["token"]
             signature = data["signature"]
             verify_signature(token, public_key, signature)
@@ -195,8 +196,7 @@ def login():
             response = generate_2fa()
             result = {
                 "status": True,
-                "msg": "QRCode send",
-                "response": response
+                "image": response
             }
 
         else:
