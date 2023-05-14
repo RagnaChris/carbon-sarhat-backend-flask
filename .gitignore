@@ -18,6 +18,7 @@ build/
 docs/_build/
 .vscode
 instance/
+migrations/
 
 # Coverage reports
 htmlcov/
