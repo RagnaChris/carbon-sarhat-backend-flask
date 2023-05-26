@@ -6,7 +6,7 @@ import qrcode
 
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
-from fastapi_jwt_auth import AuthJWT
+from fastapi_another_jwt_auth import AuthJWT
 from nacl.encoding import Base64Encoder
 from passlib.hash import bcrypt
 from sqlalchemy.orm import Session

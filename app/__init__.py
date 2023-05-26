@@ -1,7 +1,6 @@
 # app/__init__.py
 import os
 from fastapi import FastAPI
-from fastapi_jwt_auth import AuthJWT
 from fastapi.openapi.utils import get_openapi
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
