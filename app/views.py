@@ -34,6 +34,18 @@ def generate_2fa():
     
     return Base64Encoder.encode(img_buf.getvalue()).decode("utf-8")
 
+def only_developer(Authorize, db):
+    identity = Authorize.get_jwt_identity()
+    user = db.query(User).filter_by(email=identity).first()
+    if user.role != Role.INSTITUTIONAL:
+        raise Exception("Not Institutional user.")
+    
+    if user.subrole != InstitutionalRole.ENERGY_PROJECT_DEVELOPER or\
+        user.subrole != InstitutionalRole.ENERGY_PROJECT_DEVELOPER:
+        raise Exception("Not Developer.")
+
+    return user
+
 ############### GETTER FUNCTIONS ###############
 @router.get("/")
 def home():
@@ -94,7 +106,7 @@ def signup(
         user = User(
             email=user_data.email,
             address=user_data.address,
-            role=user_data.role
+            role=Role[user_data.role]
         )
         db.add(user)
         db.commit()
@@ -102,7 +114,7 @@ def signup(
 
         if institutional_data:
             institutional = Institutional(
-                subrole=institutional_data.subrole,
+                subrole=InstitutionalRole[institutional_data.subrole],
                 user_id=user.id,
                 organization_name=institutional_data.organization_name,
                 country=institutional_data.country,
@@ -200,6 +212,8 @@ async def create_project(
 ):
     Authorize.jwt_required()
     try:
+        only_developer()
+
         subtype = project.subtype
         if subtype in [energy.value for energy in RenewableEnergy]:
             project_subtype = RenewableEnergy[subtype]
@@ -243,8 +257,13 @@ async def get_project(
     db: Session = Depends(get_db),
     Authorize: AuthJWT = Depends()
 ):
-    # Todo # Need to use JWT?
+    Authorize.jwt_required()
     try:
+        identity = Authorize.get_jwt_identity()
+        user = db.query(User).filter_by(email=identity).first()
+        if user.role == Role.RETAIL:
+            raise Exception("User Retail not allowed.")
+
         project = db.query(Project).get(project_id)
 
         if not project:
@@ -284,10 +303,14 @@ async def update_project(
 ):
     Authorize.jwt_required()
     try:
+        user = only_developer()
         existing_project = db.query(Project).get(project_id)
 
         if not existing_project:
             raise HTTPException(status_code=404, detail="Project not found")
+
+        if user.institutional_id != existing_project.developer_id:
+            raise Exception("Not the project developer.")
 
         existing_project.name = project.name or existing_project.name
         existing_project.website = project.website or existing_project.website
@@ -326,10 +349,14 @@ async def delete_project(
 ):
     Authorize.jwt_required()
     try:
+        user = only_developer()
         existing_project = db.query(Project).get(project_id)
 
         if not existing_project:
             raise HTTPException(status_code=404, detail="Project not found")
+
+        if user.institutional_id != existing_project.developer_id:
+            raise Exception("Not the project developer.")
 
         db.delete(existing_project)
         db.commit()
@@ -352,6 +379,8 @@ async def create_project_financing(
 ):
     Authorize.jwt_required()
     try:
+        only_developer()
+        
         project_financing = ProjectFinancing(
             project_id=financing.project_id,
             amount=financing.amount,
@@ -372,8 +401,13 @@ async def get_project_financing(
     db: Session = Depends(get_db), 
     Authorize: AuthJWT = Depends()
 ):
-    Authorize.jwt_required() # Todo # Maybe Remove?
+    Authorize.jwt_required()
     try:
+        identity = Authorize.get_jwt_identity()
+        user = db.query(User).filter_by(email=identity).first()
+        if user.role == Role.RETAIL:
+            raise Exception("User Retail not allowed.")
+
         project_financing = db.query(ProjectFinancing).get(financing_id)
 
         if not project_financing:
@@ -400,10 +434,14 @@ async def update_project_financing(
 ):
     Authorize.jwt_required()
     try:
+        user = only_developer()
         project_financing = db.query(ProjectFinancing).get(financing_id)
 
         if not project_financing:
             raise HTTPException(status_code=404, detail="Project financing not found")
+        
+        if user.institutional_id != existing_project.developer_id:
+            raise Exception("Not the project developer.")
 
         project_financing.project_id = financing.project_id
         project_financing.amount = financing.amount
@@ -425,10 +463,14 @@ async def delete_project_financing(
 ):
     Authorize.jwt_required()
     try:
+        user = only_developer()
         financing = db.query(ProjectFinancing).get(financing_id)
 
         if not financing:
             raise HTTPException(status_code=404, detail="Project financing not found")
+        
+        if user.institutional_id != existing_project.developer_id:
+            raise Exception("Not the project developer.")
 
         db.delete(financing)
         db.commit()

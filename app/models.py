@@ -55,8 +55,8 @@ class User(Base):
         return self._password
 
 class Institutional(User):
-    __tablename__ = "corporates"
-    id = Column(Integer, primary_key=True)
+    __tablename__ = "institutionals"
+    institutional_id = Column(Integer, primary_key=True)
     subrole = Column(EnumDB(InstitutionalRole), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     organization_name = Column(String(255), nullable=False)
@@ -103,6 +103,7 @@ class FinancingType(Enum):
 class Project(Base):
     __tablename__ = "projects"
     id = Column(Integer, primary_key=True)
+    developer_id = Column(Integer, ForeignKey("institutional.id"), nullable=False)
     name = Column(String(255), nullable=False)
     website = Column(String(255), nullable=False)
     project_type = Column(EnumDB(ProjectType), nullable=False)
