@@ -19,6 +19,9 @@ docs/_build/
 .vscode
 instance/
 migrations/
+.gitignore
+alembic_env.py
+alembic.ini
 
 # Coverage reports
 htmlcov/

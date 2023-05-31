@@ -103,7 +103,7 @@ class FinancingType(Enum):
 class Project(Base):
     __tablename__ = "projects"
     id = Column(Integer, primary_key=True)
-    developer_id = Column(Integer, ForeignKey("institutional.id"), nullable=False)
+    developer_id = Column(Integer, ForeignKey("institutionals.institutional_id"), nullable=False)
     name = Column(String(255), nullable=False)
     website = Column(String(255), nullable=False)
     project_type = Column(EnumDB(ProjectType), nullable=False)
