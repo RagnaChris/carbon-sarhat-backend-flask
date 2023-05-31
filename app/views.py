@@ -212,7 +212,7 @@ async def create_project(
 ):
     Authorize.jwt_required()
     try:
-        only_developer()
+        only_developer(Authorize, db)
 
         subtype = project.subtype
         if subtype in [energy.value for energy in RenewableEnergy]:
@@ -303,7 +303,7 @@ async def update_project(
 ):
     Authorize.jwt_required()
     try:
-        user = only_developer()
+        user = only_developer(Authorize, db)
         existing_project = db.query(Project).get(project_id)
 
         if not existing_project:
@@ -349,7 +349,7 @@ async def delete_project(
 ):
     Authorize.jwt_required()
     try:
-        user = only_developer()
+        user = only_developer(Authorize, db)
         existing_project = db.query(Project).get(project_id)
 
         if not existing_project:
@@ -379,7 +379,7 @@ async def create_project_financing(
 ):
     Authorize.jwt_required()
     try:
-        only_developer()
+        only_developer(Authorize, db)
         
         project_financing = ProjectFinancing(
             project_id=financing.project_id,
@@ -434,7 +434,7 @@ async def update_project_financing(
 ):
     Authorize.jwt_required()
     try:
-        user = only_developer()
+        user = only_developer(Authorize, db)
         project_financing = db.query(ProjectFinancing).get(financing_id)
 
         if not project_financing:
@@ -463,7 +463,7 @@ async def delete_project_financing(
 ):
     Authorize.jwt_required()
     try:
-        user = only_developer()
+        user = only_developer(Authorize, db)
         financing = db.query(ProjectFinancing).get(financing_id)
 
         if not financing:
