@@ -107,7 +107,13 @@ def signup(
             user = User(
                 email=user_data.email,
                 address=user_data.address,
-                role=Role[user_data.role]
+                role=Role.User,
+                firstName: user_data.firstName
+                lastName: user_data.lastName
+                accreditedInvestor: user_data.accreditedInvestor
+                phoneNumber: user_data.phoneNumber
+                country: user_data.country
+                address: user_data.address
             )
             db.add(user)
             db.commit()
