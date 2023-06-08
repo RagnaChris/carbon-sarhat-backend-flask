@@ -1,21 +1,17 @@
 # app/__init__.py
-import os
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
-from dotenv import load_dotenv
 from datetime import timedelta
 from jose import JWTError, jwt
 
 from .models import Base, engine
 from .views import router
 
-load_dotenv()
-
 # Create FastAPI app instance
-app = FastAPI()
+app = FastAPI(debug=True)
 
 # Set up CORS
 origins = ["*"]  # Update with your frontend URL(s) if necessary

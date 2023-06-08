@@ -1,14 +1,17 @@
 # app/views.py
 import io
 import json
+import os
 import pyotp
 import qrcode
 
+from dotenv import load_dotenv
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from fastapi_another_jwt_auth import AuthJWT
 from nacl.encoding import Base64Encoder
 from passlib.hash import bcrypt
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .models import (
@@ -19,12 +22,21 @@ from .models import (
     TwoFASchema, ProjectSchema, ProjectFinancingSchema
 )
 
+load_dotenv()
 router = APIRouter()
+
+############### AUTHJWT CONFIG ###############
+class Settings(BaseModel):
+    authjwt_secret_key: str = os.getenv("JWT_SECRET_KEY")
+
+@AuthJWT.load_config
+def get_config():
+    return Settings()
 
 ############### GENERAL FUNCTIONS ###############
 def generate_2fa():
     img_buf = io.BytesIO()
-    uri = pyotp.totp.TOTP(app.config["TOTP_KEY"]).provisioning_uri(
+    uri = pyotp.totp.TOTP(os.getenv("TOTP_KEY")).provisioning_uri(
         name="Admin",
         issuer_name="Carbon Sarhat"
     )
@@ -35,13 +47,13 @@ def generate_2fa():
     return Base64Encoder.encode(img_buf.getvalue()).decode("utf-8")
 
 def only_developer(Authorize, db):
-    identity = Authorize.get_jwt_identity()
-    user = db.query(User).filter_by(email=identity).first()
-    if user.role != Role.institution:
+    subject = Authorize.get_jwt_subject()
+    user = db.query(User).filter_by(email=subject).first()
+    if user.role != Role.INSTITUTION:
         raise Exception("Not institution user.")
     
     if user.subrole != institutionRole.ENERGY_PROJECT_DEVELOPER or\
-        user.subrole != institutionRole.ENERGY_PROJECT_DEVELOPER:
+        user.subrole != institutionRole.NATURE_BASED_PROJECT_DEVELOPER:
         raise Exception("Not Developer.")
 
     return user
@@ -57,7 +69,7 @@ def get_role():
 
 @router.get("/subrole")
 def get_subrole():
-    return JSONResponse(content={"Subrole": [role.value for role in institutionRole]})
+    return JSONResponse(content={"Subrole": [role.value for role in InstitutionRole]})
 
 @router.get("/project_type")
 def get_project_type():
@@ -85,29 +97,32 @@ async def refresh(
     Authorize: AuthJWT = Depends()
 ):
     Authorize.jwt_refresh_token_required()
-    identity = Authorize.get_jwt_identity()
-    access_token = Authorize.create_access_token(identity=identity)
+    subject = Authorize.get_jwt_subject()
+    claims = Authorize.get_raw_jwt()["role"]
+    access_token = Authorize.create_access_token(subject=subject, user_claims={"role": claims})
     return {"access_token": access_token}
 
 @router.post("/signup", tags=["Authentication"])
 def signup(
-    user_data: UserSchema, 
+    user_data: UserSchema = None, 
     institution_data: InstitutionSchema = None, 
     db: Session = Depends(get_db),
     Authorize: AuthJWT = Depends()
 ):
     try:
-        email = user_data.email,
+        email = str(user_data.email)
         user = db.query(User).filter_by(email=email).first()
 
         if user is not None:
             raise Exception("User Already Exists!")
 
+        role = ""
         if user_data:
+            role = "user"
             user = User(
-                email=user_data.email,
-                password=user_data.password,
-                role=Role.User,
+                email=email,
+                password=bcrypt.hash(user_data.password),
+                role=Role.RETAIL,
                 firstName=user_data.firstName,
                 lastName=user_data.lastName,
                 accreditedInvestor=user_data.accreditedInvestor,
@@ -120,7 +135,10 @@ def signup(
             db.refresh(user)
 
         elif institution_data:
+            role = "institution"
             institution = Institution(
+                email=email,
+                password=bcrypt.hash(user_data.password),
                 subrole=institutionRole[institution_data.subrole],
                 organization_name=institution_data.organization_name,
                 country=institution_data.country,
@@ -135,9 +153,12 @@ def signup(
             db.add(institution)
             db.commit()
             db.refresh(institution)
+        else:
+            raise Exception("Not known role.")
 
-        access_token = Authorize.create_access_token(identity=email)
-        refresh_token = Authorize.create_refresh_token(identity=email)
+        claims = {"role": role}
+        access_token = Authorize.create_access_token(subject=subject, user_claims=claims)
+        refresh_token = Authorize.create_refresh_token(subject=email)
         result = {
             "status": True,
             "access_token": access_token,
@@ -158,15 +179,15 @@ async def login(
     Authorize: AuthJWT = Depends()
 ):
     try:
-        email = login_data.email
+        email = str(login_data.email)
         password = login_data.password
         user = db.query(User).filter_by(email=email).first()
 
         if not user or not bcrypt.verify(password, user.password):
             raise Exception("Invalid email or password!")
 
-        access_token = Authorize.create_access_token(identity=email)
-        refresh_token = Authorize.create_refresh_token(identity=email)
+        access_token = Authorize.create_access_token(subject=email)
+        refresh_token = Authorize.create_refresh_token(subject=email)
         result = {
             "status": True,
             "access_token": access_token,
@@ -185,7 +206,7 @@ def verify_2fa(
 ):
     try:
         code = schema.otp
-        email = schema.email
+        email = str(schema.email)
 
         user = db.query(User).filter_by(email=email).first()
             
@@ -196,8 +217,8 @@ def verify_2fa(
         if not totp:
             raise Exception("Invalid OTP")
 
-        access_token = Authorize.create_access_token(identity=email)
-        refresh_token = Authorize.create_refresh_token(identity=email)
+        access_token = Authorize.create_access_token(subject=email)
+        refresh_token = Authorize.create_refresh_token(subject=email)
         result = {
             "status": True,
             "access_token": access_token,
@@ -265,8 +286,8 @@ async def get_project(
 ):
     Authorize.jwt_required()
     try:
-        identity = Authorize.get_jwt_identity()
-        user = db.query(User).filter_by(email=identity).first()
+        subject = Authorize.get_jwt_subject()
+        user = db.query(User).filter_by(email=subject).first()
         if user.role == Role.RETAIL:
             raise Exception("User Retail not allowed.")
 
@@ -409,8 +430,8 @@ async def get_project_financing(
 ):
     Authorize.jwt_required()
     try:
-        identity = Authorize.get_jwt_identity()
-        user = db.query(User).filter_by(email=identity).first()
+        subject = Authorize.get_jwt_subject()
+        user = db.query(User).filter_by(email=subject).first()
         if user.role == Role.RETAIL:
             raise Exception("User Retail not allowed.")
 

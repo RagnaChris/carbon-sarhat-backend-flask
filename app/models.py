@@ -29,7 +29,7 @@ def get_db() -> Session:
 ############### USER DATABASE ###############
 class Role(Enum):
     ADMIN = "Admin"
-    RETAIL = "Retail"
+    USER = "User"
     INSTITUTION = "Institution"
 
 class InstitutionRole(Enum):
@@ -44,20 +44,16 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
     email = Column(String(128), unique=True)
-    _password = Column(String(128))
+    password = Column(String(128))
     firstName = Column(String(128))
     lastName = Column(String(128))
     accreditedInvestor = Column(Boolean, default=False)
     phoneNumber = Column(String(128))
     country = Column(String(128))
     address = Column(String(255))
-    role = Column(EnumDB(Role), nullable=False, default=Role.RETAIL)
+    role = Column(EnumDB(Role), nullable=False, default=Role.USER)
     admin = Column(Boolean, default=False)
     whitelisted = Column(Boolean, default=False)
-
-    @property
-    def password(self):
-        return self._password
 
 class Institution(User):
     __tablename__ = "institutions"
@@ -85,7 +81,7 @@ class Institution(User):
         self.product_preference = product_preference
         self.regions_of_interest = regions_of_interest
         self.sector_of_interest = sector_of_interest
-        self.user = User(email=email, _password=password, country=country,
+        self.user = User(email=email, password=password, country=country,
                          role=Role.INSTITUTION)
 
 ############### PROJECT DATABASE ###############
@@ -150,7 +146,6 @@ class ProjectFinancing(Base):
 
 ############### PYDANTIC MODELS ###############
 class UserSchema(BaseModel):
-    id: int
     email: str
     password: str
     firstName: str
