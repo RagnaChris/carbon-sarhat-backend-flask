@@ -108,12 +108,12 @@ def signup(
                 email=user_data.email,
                 address=user_data.address,
                 role=Role.User,
-                firstName: user_data.firstName
-                lastName: user_data.lastName
-                accreditedInvestor: user_data.accreditedInvestor
-                phoneNumber: user_data.phoneNumber
-                country: user_data.country
-                address: user_data.address
+                firstName= user_data.firstName
+                lastName= user_data.lastName
+                accreditedInvestor= user_data.accreditedInvestor
+                phoneNumber= user_data.phoneNumber
+                country= user_data.country
+                address= user_data.address
             )
             db.add(user)
             db.commit()
