@@ -122,7 +122,7 @@ def signup(
             user = User(
                 email=email,
                 password=bcrypt.hash(user_data.password),
-                role=Role.RETAIL,
+                role=Role.USER,
                 firstName=user_data.firstName,
                 lastName=user_data.lastName,
                 accreditedInvestor=user_data.accreditedInvestor,
@@ -186,7 +186,8 @@ async def login(
         if not user or not bcrypt.verify(password, user.password):
             raise Exception("Invalid email or password!")
 
-        access_token = Authorize.create_access_token(subject=email)
+        claims = {"role": role}
+        access_token = Authorize.create_access_token(subject=subject, user_claims=claims)
         refresh_token = Authorize.create_refresh_token(subject=email)
         result = {
             "status": True,
@@ -288,8 +289,8 @@ async def get_project(
     try:
         subject = Authorize.get_jwt_subject()
         user = db.query(User).filter_by(email=subject).first()
-        if user.role == Role.RETAIL:
-            raise Exception("User Retail not allowed.")
+        if user.role == Role.USER:
+            raise Exception("User not allowed.")
 
         project = db.query(Project).get(project_id)
 
@@ -432,8 +433,8 @@ async def get_project_financing(
     try:
         subject = Authorize.get_jwt_subject()
         user = db.query(User).filter_by(email=subject).first()
-        if user.role == Role.RETAIL:
-            raise Exception("User Retail not allowed.")
+        if user.role == Role.USER:
+            raise Exception("User not allowed.")
 
         project_financing = db.query(ProjectFinancing).get(financing_id)
 
