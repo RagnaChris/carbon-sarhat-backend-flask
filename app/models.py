@@ -30,9 +30,9 @@ def get_db() -> Session:
 class Role(Enum):
     ADMIN = "Admin"
     RETAIL = "Retail"
-    INSTITUTIONAL = "Institutional"
+    INSTITUTION = "Institution"
 
-class InstitutionalRole(Enum):
+class InstitutionRole(Enum):
     ENERGY_PROJECT_DEVELOPER = "Energy Project Developer/ Sponsor"
     NATURE_BASED_PROJECT_DEVELOPER = "Nature-based Project Developer/ Sponsor"
     FINANCIAL_INSTITUTION = "Financial institution/ Credit Organization/ Licensed Investor"
@@ -45,6 +45,11 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     email = Column(String(128), unique=True)
     _password = Column(String(128))
+    firstName = Column(String(128))
+    lastName = Column(String(128))
+    accreditedInvestor = Column(Boolean, default=False)
+    phoneNumber = Column(String(128))
+    country = Column(String(128))
     address = Column(String(255))
     role = Column(EnumDB(Role), nullable=False, default=Role.RETAIL)
     admin = Column(Boolean, default=False)
@@ -54,13 +59,12 @@ class User(Base):
     def password(self):
         return self._password
 
-class Institutional(User):
-    __tablename__ = "institutionals"
-    institutional_id = Column(Integer, primary_key=True)
-    subrole = Column(EnumDB(InstitutionalRole), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+class Institution(User):
+    __tablename__ = "institutions"
+    institution_id = Column(Integer, primary_key=True)
+    subrole = Column(EnumDB(InstitutionRole), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete='CASCADE'), nullable=False)
     organization_name = Column(String(255), nullable=False)
-    country = Column(String(255), nullable=False)
     organization_address = Column(String(255), nullable=False)
     organization_registration_number = Column(String(255), nullable=False)
     assets_under_management = Column(String(255))
@@ -68,6 +72,21 @@ class Institutional(User):
     product_preference = Column(String(255))
     regions_of_interest = Column(String(255))
     sector_of_interest = Column(String(255))
+
+    def __init__(self, email, password, country, subrole, organization_name, organization_address,
+                 organization_registration_number, assets_under_management, investment_ticket_preference,
+                 product_preference, regions_of_interest, sector_of_interest):
+        self.subrole = subrole
+        self.organization_name = organization_name
+        self.organization_address = organization_address
+        self.organization_registration_number = organization_registration_number
+        self.assets_under_management = assets_under_management
+        self.investment_ticket_preference = investment_ticket_preference
+        self.product_preference = product_preference
+        self.regions_of_interest = regions_of_interest
+        self.sector_of_interest = sector_of_interest
+        self.user = User(email=email, _password=password, country=country,
+                         role=Role.INSTITUTION)
 
 ############### PROJECT DATABASE ###############
 class ProjectType(Enum):
@@ -103,7 +122,7 @@ class FinancingType(Enum):
 class Project(Base):
     __tablename__ = "projects"
     id = Column(Integer, primary_key=True)
-    developer_id = Column(Integer, ForeignKey("institutionals.institutional_id"), nullable=False)
+    developer_id = Column(Integer, ForeignKey("institutions.institution_id", ondelete='CASCADE'), nullable=False, )
     name = Column(String(255), nullable=False)
     website = Column(String(255), nullable=False)
     project_type = Column(EnumDB(ProjectType), nullable=False)
@@ -133,11 +152,18 @@ class ProjectFinancing(Base):
 class UserSchema(BaseModel):
     id: int
     email: str
+    password: str
+    firstName: str
+    lastName: str
+    accreditedInvestor: bool
+    phoneNumber: str
+    country: str
     address: str
-    role: Role
 
-class InstitutionalSchema(UserSchema):
-    subrole: InstitutionalRole
+class InstitutionSchema(UserSchema):
+    email: str
+    password: str
+    subrole: InstitutionRole
     organization_name: str
     country: str
     organization_address: str

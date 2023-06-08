@@ -12,10 +12,10 @@ from passlib.hash import bcrypt
 from sqlalchemy.orm import Session
 
 from .models import (
-    get_db, Role, InstitutionalRole, User, Institutional, Project,
+    get_db, Role, InstitutionRole, User, Institution, Project,
     ProjectType, RenewableEnergy, CarbonCredit,
     FeasibilityStudy, FinancingType, ProjectFinancing,
-    UserSchema, InstitutionalSchema, LoginSchema,
+    UserSchema, InstitutionSchema, LoginSchema,
     TwoFASchema, ProjectSchema, ProjectFinancingSchema
 )
 
@@ -37,11 +37,11 @@ def generate_2fa():
 def only_developer(Authorize, db):
     identity = Authorize.get_jwt_identity()
     user = db.query(User).filter_by(email=identity).first()
-    if user.role != Role.INSTITUTIONAL:
-        raise Exception("Not Institutional user.")
+    if user.role != Role.institution:
+        raise Exception("Not institution user.")
     
-    if user.subrole != InstitutionalRole.ENERGY_PROJECT_DEVELOPER or\
-        user.subrole != InstitutionalRole.ENERGY_PROJECT_DEVELOPER:
+    if user.subrole != institutionRole.ENERGY_PROJECT_DEVELOPER or\
+        user.subrole != institutionRole.ENERGY_PROJECT_DEVELOPER:
         raise Exception("Not Developer.")
 
     return user
@@ -57,7 +57,7 @@ def get_role():
 
 @router.get("/subrole")
 def get_subrole():
-    return JSONResponse(content={"Subrole": [role.value for role in InstitutionalRole]})
+    return JSONResponse(content={"Subrole": [role.value for role in institutionRole]})
 
 @router.get("/project_type")
 def get_project_type():
@@ -92,7 +92,7 @@ async def refresh(
 @router.post("/signup", tags=["Authentication"])
 def signup(
     user_data: UserSchema, 
-    institutional_data: InstitutionalSchema = None, 
+    institution_data: InstitutionSchema = None, 
     db: Session = Depends(get_db),
     Authorize: AuthJWT = Depends()
 ):
@@ -103,32 +103,32 @@ def signup(
         if user is not None:
             raise Exception("User Already Exists!")
 
-        user = User(
-            email=user_data.email,
-            address=user_data.address,
-            role=Role[user_data.role]
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-        if institutional_data:
-            institutional = Institutional(
-                subrole=InstitutionalRole[institutional_data.subrole],
-                user_id=user.id,
-                organization_name=institutional_data.organization_name,
-                country=institutional_data.country,
-                organization_address=institutional_data.organization_address,
-                organization_registration_number=institutional_data.organization_registration_number,
-                assets_under_management=institutional_data.assets_under_management,
-                investment_ticket_preference=institutional_data.investment_ticket_preference,
-                product_preference=institutional_data.product_preference,
-                regions_of_interest=institutional_data.regions_of_interest,
-                sector_of_interest=institutional_data.sector_of_interest
+        if user_data:
+            user = User(
+                email=user_data.email,
+                address=user_data.address,
+                role=Role[user_data.role]
             )
-            db.add(institutional)
+            db.add(user)
             db.commit()
-            db.refresh(institutional)
+            db.refresh(user)
+
+        elif institution_data:
+            institution = Institution(
+                subrole=institutionRole[institution_data.subrole],
+                organization_name=institution_data.organization_name,
+                country=institution_data.country,
+                organization_address=institution_data.organization_address,
+                organization_registration_number=institution_data.organization_registration_number,
+                assets_under_management=institution_data.assets_under_management,
+                investment_ticket_preference=institution_data.investment_ticket_preference,
+                product_preference=institution_data.product_preference,
+                regions_of_interest=institution_data.regions_of_interest,
+                sector_of_interest=institution_data.sector_of_interest
+            )
+            db.add(institution)
+            db.commit()
+            db.refresh(institution)
 
         access_token = Authorize.create_access_token(identity=email)
         refresh_token = Authorize.create_refresh_token(identity=email)
@@ -309,7 +309,7 @@ async def update_project(
         if not existing_project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        if user.institutional_id != existing_project.developer_id:
+        if user.institution_id != existing_project.developer_id:
             raise Exception("Not the project developer.")
 
         existing_project.name = project.name or existing_project.name
@@ -355,7 +355,7 @@ async def delete_project(
         if not existing_project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        if user.institutional_id != existing_project.developer_id:
+        if user.institution_id != existing_project.developer_id:
             raise Exception("Not the project developer.")
 
         db.delete(existing_project)
@@ -440,7 +440,7 @@ async def update_project_financing(
         if not project_financing:
             raise HTTPException(status_code=404, detail="Project financing not found")
         
-        if user.institutional_id != existing_project.developer_id:
+        if user.institution_id != existing_project.developer_id:
             raise Exception("Not the project developer.")
 
         project_financing.project_id = financing.project_id
@@ -469,7 +469,7 @@ async def delete_project_financing(
         if not financing:
             raise HTTPException(status_code=404, detail="Project financing not found")
         
-        if user.institutional_id != existing_project.developer_id:
+        if user.institution_id != existing_project.developer_id:
             raise Exception("Not the project developer.")
 
         db.delete(financing)
