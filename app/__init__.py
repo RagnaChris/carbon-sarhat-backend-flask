@@ -11,7 +11,7 @@ from .models import Base, engine
 from .views import router
 
 # Create FastAPI app instance
-app = FastAPI(debug=True)
+app = FastAPI()
 
 # Set up CORS
 origins = ["*"]  # Update with your frontend URL(s) if necessary

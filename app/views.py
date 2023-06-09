@@ -110,7 +110,12 @@ def signup(
     Authorize: AuthJWT = Depends()
 ):
     try:
-        email = str(user_data.email)
+        email = ""
+        if user_data:
+            email = str(user_data.email)
+        elif institution_data:
+            email = str(institution_data.email)
+        
         user = db.query(User).filter_by(email=email).first()
 
         if user is not None:
@@ -118,11 +123,10 @@ def signup(
 
         role = ""
         if user_data:
-            role = "user"
+            role = "User"
             user = User(
                 email=email,
                 password=bcrypt.hash(user_data.password),
-                role=Role.USER,
                 firstName=user_data.firstName,
                 lastName=user_data.lastName,
                 accreditedInvestor=user_data.accreditedInvestor,
@@ -135,11 +139,12 @@ def signup(
             db.refresh(user)
 
         elif institution_data:
-            role = "institution"
+            role = "Institution"
             institution = Institution(
-                email=email,
-                password=bcrypt.hash(user_data.password),
-                subrole=institutionRole[institution_data.subrole],
+                email=institution_data.email,
+                password=institution_data.password,
+                role=Role.INSTITUTION.value,
+                subrole=institution_data.subrole,
                 organization_name=institution_data.organization_name,
                 country=institution_data.country,
                 organization_address=institution_data.organization_address,
@@ -148,7 +153,7 @@ def signup(
                 investment_ticket_preference=institution_data.investment_ticket_preference,
                 product_preference=institution_data.product_preference,
                 regions_of_interest=institution_data.regions_of_interest,
-                sector_of_interest=institution_data.sector_of_interest
+                sector_of_interest=institution_data.sector_of_interest,
             )
             db.add(institution)
             db.commit()
@@ -157,7 +162,7 @@ def signup(
             raise Exception("Not known role.")
 
         claims = {"role": role}
-        access_token = Authorize.create_access_token(subject=subject, user_claims=claims)
+        access_token = Authorize.create_access_token(subject=email, user_claims=claims)
         refresh_token = Authorize.create_refresh_token(subject=email)
         result = {
             "status": True,
@@ -186,8 +191,8 @@ async def login(
         if not user or not bcrypt.verify(password, user.password):
             raise Exception("Invalid email or password!")
 
-        claims = {"role": role}
-        access_token = Authorize.create_access_token(subject=subject, user_claims=claims)
+        claims = {"role": user.role}
+        access_token = Authorize.create_access_token(subject=email, user_claims=claims)
         refresh_token = Authorize.create_refresh_token(subject=email)
         result = {
             "status": True,

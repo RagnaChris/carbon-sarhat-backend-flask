@@ -33,9 +33,9 @@ class Role(Enum):
     INSTITUTION = "Institution"
 
 class InstitutionRole(Enum):
-    ENERGY_PROJECT_DEVELOPER = "Energy Project Developer/ Sponsor"
-    NATURE_BASED_PROJECT_DEVELOPER = "Nature-based Project Developer/ Sponsor"
-    FINANCIAL_INSTITUTION = "Financial institution/ Credit Organization/ Licensed Investor"
+    ENERGY_PROJECT_DEVELOPER = "Energy Project Developer | Sponsor"
+    NATURE_BASED_PROJECT_DEVELOPER = "Nature-based Project Developer | Sponsor"
+    FINANCIAL_INSTITUTION = "Financial institution | Credit Organization | Licensed Investor"
     ENTERPRISE_AND_NGO = "Enterprise and NGO"
     GOVERNMENT = "Government Agency"
     OTHER = "Other"
@@ -51,7 +51,7 @@ class User(Base):
     phoneNumber = Column(String(128))
     country = Column(String(128))
     address = Column(String(255))
-    role = Column(EnumDB(Role), nullable=False, default=Role.USER)
+    role = Column(String(128), nullable=False, default=Role.USER.value)
     admin = Column(Boolean, default=False)
     whitelisted = Column(Boolean, default=False)
 
@@ -69,7 +69,7 @@ class Institution(User):
     regions_of_interest = Column(String(255))
     sector_of_interest = Column(String(255))
 
-    def __init__(self, email, password, country, subrole, organization_name, organization_address,
+    def __init__(self, email, password, role, country, subrole, organization_name, organization_address,
                  organization_registration_number, assets_under_management, investment_ticket_preference,
                  product_preference, regions_of_interest, sector_of_interest):
         self.subrole = subrole
@@ -81,8 +81,7 @@ class Institution(User):
         self.product_preference = product_preference
         self.regions_of_interest = regions_of_interest
         self.sector_of_interest = sector_of_interest
-        self.user = User(email=email, password=password, country=country,
-                         role=Role.INSTITUTION)
+        super().__init__(email=email, password=password, country=country, role=role)
 
 ############### PROJECT DATABASE ###############
 class ProjectType(Enum):
@@ -155,7 +154,7 @@ class UserSchema(BaseModel):
     country: str
     address: str
 
-class InstitutionSchema(UserSchema):
+class InstitutionSchema(BaseModel):
     email: str
     password: str
     subrole: InstitutionRole
