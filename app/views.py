@@ -28,6 +28,7 @@ router = APIRouter()
 ############### AUTHJWT CONFIG ###############
 class Settings(BaseModel):
     authjwt_secret_key: str = os.getenv("JWT_SECRET_KEY")
+    authjwt_token_location: set = {"headers"}
 
 @AuthJWT.load_config
 def get_config():
@@ -49,11 +50,11 @@ def generate_2fa():
 def only_developer(Authorize, db):
     subject = Authorize.get_jwt_subject()
     user = db.query(User).filter_by(email=subject).first()
-    if user.role != Role.INSTITUTION:
+    if user.role != Role.INSTITUTION.value:
         raise Exception("Not institution user.")
     
-    if user.subrole != institutionRole.ENERGY_PROJECT_DEVELOPER or\
-        user.subrole != institutionRole.NATURE_BASED_PROJECT_DEVELOPER:
+    if user.subrole != institutionRole.ENERGY_PROJECT_DEVELOPER.value or\
+        user.subrole != institutionRole.NATURE_BASED_PROJECT_DEVELOPER.value:
         raise Exception("Not Developer.")
 
     return user
@@ -142,7 +143,7 @@ def signup(
             role = "Institution"
             institution = Institution(
                 email=institution_data.email,
-                password=institution_data.password,
+                password=bcrypt.hash(institution_data.password),
                 role=Role.INSTITUTION.value,
                 subrole=institution_data.subrole,
                 organization_name=institution_data.organization_name,
@@ -534,7 +535,7 @@ async def process_whitelist_user(
         if not current_user:
             raise HTTPException(status_code=401, detail="Unauthorized")
 
-        if current_user.role != Role.ADMIN:
+        if not current_user.admin:
             raise HTTPException(status_code=403, detail="Only admin can perform this action")
 
         user = db.query(User).get(user_id)
