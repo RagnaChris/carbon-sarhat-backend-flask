@@ -22,6 +22,7 @@ migrations/
 .gitignore
 alembic_env.py
 alembic.ini
+.ruff.toml
 
 # Coverage reports
 htmlcov/

@@ -1,23 +1,33 @@
 # app/models.py
 import os
 from datetime import date
-from dotenv import load_dotenv
 from enum import Enum
+from typing import Optional
+
+from dotenv import load_dotenv
 from pydantic import BaseModel
 from sqlalchemy import (
-    Boolean, Column, create_engine,
-    Date, Enum as EnumDB,
-    Float, ForeignKey,
-    Integer, String, Text
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    func,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
 )
+from sqlalchemy import Enum as EnumDB
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session, sessionmaker, relationship
-from typing import Optional
+from sqlalchemy.orm import Session, sessionmaker
 
 load_dotenv()
 engine = create_engine(os.getenv("DATABASE_URI"))
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
 
 def get_db() -> Session:
     db = SessionLocal()
@@ -26,11 +36,13 @@ def get_db() -> Session:
     finally:
         db.close()
 
+
 ############### USER DATABASE ###############
 class Role(Enum):
     ADMIN = "Admin"
     USER = "User"
     INSTITUTION = "Institution"
+
 
 class InstitutionRole(Enum):
     ENERGY_PROJECT_DEVELOPER = "Energy Project Developer | Sponsor"
@@ -39,6 +51,7 @@ class InstitutionRole(Enum):
     ENTERPRISE_AND_NGO = "Enterprise and NGO"
     GOVERNMENT = "Government Agency"
     OTHER = "Other"
+
 
 class User(Base):
     __tablename__ = "users"
@@ -54,12 +67,14 @@ class User(Base):
     role = Column(String(128), nullable=False, default=Role.USER.value)
     admin = Column(Boolean, default=False)
     whitelisted = Column(Boolean, default=False)
+    verified = Column(Boolean, default=False)
+
 
 class Institution(User):
     __tablename__ = "institutions"
     institution_id = Column(Integer, primary_key=True)
     subrole = Column(EnumDB(InstitutionRole), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     organization_name = Column(String(255), nullable=False)
     organization_address = Column(String(255), nullable=False)
     organization_registration_number = Column(String(255), nullable=False)
@@ -69,9 +84,22 @@ class Institution(User):
     regions_of_interest = Column(String(255))
     sector_of_interest = Column(String(255))
 
-    def __init__(self, email, password, role, country, subrole, organization_name, organization_address,
-                 organization_registration_number, assets_under_management, investment_ticket_preference,
-                 product_preference, regions_of_interest, sector_of_interest):
+    def __init__(
+        self,
+        email,
+        password,
+        role,
+        country,
+        subrole,
+        organization_name,
+        organization_address,
+        organization_registration_number,
+        assets_under_management,
+        investment_ticket_preference,
+        product_preference,
+        regions_of_interest,
+        sector_of_interest,
+    ):
         self.subrole = subrole
         self.organization_name = organization_name
         self.organization_address = organization_address
@@ -83,10 +111,20 @@ class Institution(User):
         self.sector_of_interest = sector_of_interest
         super().__init__(email=email, password=password, country=country, role=role)
 
+
+class History(Base):
+    __tablename__ = "histories"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    time = Column(DateTime, default=func.now())
+    actions = Column(String(255), nullable=False)
+
+
 ############### PROJECT DATABASE ###############
 class ProjectType(Enum):
     RENEWABLE_ENERGY = "Renewable Energy"
     CARBON_CREDIT = "Carbon Credit"
+
 
 class RenewableEnergy(Enum):
     SOLAR_POWER = "Solar Power"
@@ -97,27 +135,36 @@ class RenewableEnergy(Enum):
     WAVE = "Wave"
     HYDROGEN = "Hydrogen"
 
+
 class CarbonCredit(Enum):
     NATURE_BASED_SOLUTION = "Nature-based Solution"
     CARBON_STORAGE = "Carbon Storage"
     WASTE_MANAGEMENT = "Waste Management"
 
+
 class ProjectSubtype(Enum):
     RENEWABLE_ENERGY = RenewableEnergy
     CARBON_CREDIT = CarbonCredit
+
 
 class FeasibilityStudy(Enum):
     DONE = "Done"
     NOT_YET = "Not yet"
 
+
 class FinancingType(Enum):
     EQUITY = "Equity"
     DEBT = "Debt"
 
+
 class Project(Base):
     __tablename__ = "projects"
     id = Column(Integer, primary_key=True)
-    developer_id = Column(Integer, ForeignKey("institutions.institution_id", ondelete='CASCADE'), nullable=False, )
+    developer_id = Column(
+        Integer,
+        ForeignKey("institutions.institution_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     name = Column(String(255), nullable=False)
     website = Column(String(255), nullable=False)
     project_type = Column(EnumDB(ProjectType), nullable=False)
@@ -135,12 +182,19 @@ class Project(Base):
     financing_type = Column(EnumDB(FinancingType), nullable=False)
     project_yield = Column(Float, nullable=False)
 
+
 class ProjectFinancing(Base):
     __tablename__ = "project_financing"
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     amount = Column(Float, nullable=False)
     financing_type = Column(EnumDB(FinancingType), nullable=False)
+
+
+############### ADMIN MODELS ###############
+class WhitelistAction(str, Enum):
+    ADD = "add"
+    REMOVE = "remove"
 
 
 ############### PYDANTIC MODELS ###############
@@ -153,6 +207,7 @@ class UserSchema(BaseModel):
     phoneNumber: str
     country: str
     address: str
+
 
 class InstitutionSchema(BaseModel):
     email: str
@@ -168,13 +223,16 @@ class InstitutionSchema(BaseModel):
     regions_of_interest: Optional[str]
     sector_of_interest: Optional[str]
 
+
 class LoginSchema(BaseModel):
     email: str
     password: str
 
+
 class TwoFASchema(BaseModel):
     otp: int
     email: str
+
 
 class ProjectSchema(BaseModel):
     id: int
@@ -197,6 +255,7 @@ class ProjectSchema(BaseModel):
 
     class Config:
         orm_mode = True
+
 
 class ProjectFinancingSchema(BaseModel):
     id: int

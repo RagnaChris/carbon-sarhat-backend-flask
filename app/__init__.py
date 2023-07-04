@@ -1,11 +1,7 @@
 # app/__init__.py
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
-from passlib.context import CryptContext
-from datetime import timedelta
-from jose import JWTError, jwt
 
 from .models import Base, engine
 from .views import router
@@ -43,6 +39,7 @@ tags_metadata = [
     },
 ]
 
+
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -52,19 +49,24 @@ def custom_openapi():
         version="1.0.0",
         routes=app.routes,
     )
-    
-    openapi_schema["components"]["securitySchemes"] = {"bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT"
-    }}
+
+    openapi_schema["components"]["securitySchemes"] = {
+        "bearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
+    }
 
     openapi_schema["security"] = [{"bearerAuth": []}]
-
     app.openapi_schema = openapi_schema
+
+    for _, method_item in app.openapi_schema.get("paths").items():
+        for _, param in method_item.items():
+            responses = param.get("responses")
+            if "422" in responses:
+                del responses["422"]
+
     return app.openapi_schema
+
 
 app.openapi = custom_openapi
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000)  # noqa: F821
